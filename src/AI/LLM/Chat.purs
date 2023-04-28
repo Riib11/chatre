@@ -3,7 +3,7 @@ module AI.LLM.Chat where
 import Prelude
 import Data.Array (uncons)
 import Data.Default (class Default)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Effect.Aff (Aff, error, throwError)
 import Effect.Aff.Compat (EffectFnAff, fromEffectFnAff)
 
@@ -41,11 +41,10 @@ foreign import _createChatCompletion :: ChatRequest -> EffectFnAff ChatResponse
 createChatCompletion :: ChatRequest -> Aff ChatResponse
 createChatCompletion = fromEffectFnAff <<< _createChatCompletion
 
-newtype ChatOptions
-  = ChatOptions
-  { model :: String
-  , temperature :: Number
-  }
+type ChatOptions
+  = { model :: String
+    , temperature :: Number
+    }
 
 gpt_4__model :: String
 gpt_4__model = "gpt-4"
@@ -53,23 +52,31 @@ gpt_4__model = "gpt-4"
 gpt_3_5_turbo__model :: String
 gpt_3_5_turbo__model = "gpt-3.5-turbo"
 
-instance defaultChatOptions :: Default ChatOptions where
-  default =
-    ChatOptions
-      { model: gpt_3_5_turbo__model
-      , temperature: 0.6
-      }
+defaultChatOptions :: ChatOptions
+defaultChatOptions =
+  { model: gpt_3_5_turbo__model
+  , temperature: 0.6
+  }
 
-chat :: ChatOptions -> Array ChatMessage -> Aff ChatMessage
-chat (ChatOptions opts) messages = do
+chat :: ChatOptions -> Maybe String -> Array ChatMessage -> Aff ChatMessage
+chat opts mb_system messages = do
   response <-
     createChatCompletion
       { model: opts.model
       , temperature: opts.temperature
-      , messages
+      , messages: maybe [] (system >>> pure) mb_system <> messages
       }
   case uncons response.choices of
     Nothing -> throwError <<< error $ "chat: response.choices is empty"
     Just { head: choice }
       | choice.finish_reason == "stop" -> pure choice.message
       | otherwise -> throwError <<< error $ "chat: response.finish_reason == " <> show choice.finish_reason
+
+user :: String -> ChatMessage
+user content = { role: "user", content }
+
+assistant :: String -> ChatMessage
+assistant content = { role: "assistant", content }
+
+system :: String -> ChatMessage
+system content = { role: "system", content }

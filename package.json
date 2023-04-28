@@ -7,12 +7,16 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "postinstall": "npx spago install",
+    "build": "npx spago build --purs-args \"-g sourcemaps\"",
+    "test": "npx spago test",
+    "run": "npx spago run"
   },
   "author": "Henry Blanchette",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.0.3",
-    "openai": "^3.2.1"
+    "openai": "^3.2.1",
+    "uuid": "^9.0.0"
   }
 }
