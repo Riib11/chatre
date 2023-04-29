@@ -1,7 +1,10 @@
 module Chatre.Task where
 
 import Prelude
+
+import Data.Generic.Rep (class Generic)
 import Data.List (List)
+import Data.Show.Generic (genericShow)
 
 type TaskPrompt
   = { string :: String
@@ -22,9 +25,14 @@ data DoneTaskTree
     { prompt :: TaskPrompt
     , subtasks :: List DoneTaskTree
     }
-  | LeafDoneTaskTree
-    { prompt :: TaskPrompt
-    , result :: TaskResult
+  | LeafDoneTaskTree LeafDoneTaskTree
+
+derive instance Generic DoneTaskTree _ 
+instance Show DoneTaskTree where show x = genericShow x 
+
+type BranchDoneTaskTree
+  = { prompt :: TaskPrompt
+    , subtasks :: List DoneTaskTree
     }
 
 type LeafDoneTaskTree

@@ -5,7 +5,10 @@ import Data.Array (uncons)
 import Data.Default (class Default)
 import Data.Maybe (Maybe(..), maybe)
 import Effect.Aff (Aff, error, throwError)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Aff.Compat (EffectFnAff, fromEffectFnAff)
+import Effect.File (FilePath(..), writeFile)
+import Partial.Unsafe (unsafeCrashWith)
 
 type ChatRequest
   = { model :: String
@@ -38,8 +41,8 @@ type ChatChoice
 
 foreign import _createChatCompletion :: ChatRequest -> EffectFnAff ChatResponse
 
-createChatCompletion :: ChatRequest -> Aff ChatResponse
-createChatCompletion = fromEffectFnAff <<< _createChatCompletion
+createChatCompletion :: forall m. MonadAff m => ChatRequest -> m ChatResponse
+createChatCompletion = liftAff <<< fromEffectFnAff <<< _createChatCompletion
 
 type ChatOptions
   = { model :: String
@@ -58,19 +61,22 @@ defaultChatOptions =
   , temperature: 0.6
   }
 
-chat :: ChatOptions -> Maybe String -> Array ChatMessage -> Aff ChatMessage
+chat :: forall m. MonadAff m => ChatOptions -> Maybe String -> Array ChatMessage -> m ChatMessage
 chat opts mb_system messages = do
+  let
+    messages' = maybe [] (system >>> pure) mb_system <> messages
+  writeFile (show messages') (FilePath "messages.json")
   response <-
     createChatCompletion
       { model: opts.model
       , temperature: opts.temperature
-      , messages: maybe [] (system >>> pure) mb_system <> messages
+      , messages: messages'
       }
   case uncons response.choices of
-    Nothing -> throwError <<< error $ "chat: response.choices is empty"
+    Nothing -> unsafeCrashWith $ "chat: response.choices is empty"
     Just { head: choice }
       | choice.finish_reason == "stop" -> pure choice.message
-      | otherwise -> throwError <<< error $ "chat: response.finish_reason == " <> show choice.finish_reason
+      | otherwise -> unsafeCrashWith $ "chat: response.finish_reason == " <> show choice.finish_reason
 
 user :: String -> ChatMessage
 user content = { role: "user", content }
