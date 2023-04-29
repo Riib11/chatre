@@ -14,7 +14,7 @@ import Data.Either (Either(..))
 import Data.Foldable (foldMap, foldl, intercalate, traverse_)
 import Data.List (List(..), (:))
 import Data.List as List
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(..), fromJust, maybe)
 import Data.String as String
 import Data.String.CodePoints as CodePoints
 import Data.String.NonEmpty (fromString)
@@ -45,7 +45,7 @@ prettyDoneTaskTree (BranchDoneTaskTree t) = do
     prettyDoneTaskTree `traverse_` t.subtasks
 
 prettyDoneTaskTree (LeafDoneTaskTree t) = do
-  prettyDoneTaskPrompt t.prompt
+  prettyTaskPrompt t.prompt
   indented do
     prettyTaskResult t.result
 
@@ -73,13 +73,26 @@ prettyWrapString :: String -> PrettyPrinter
 prettyWrapString str = tell [ str ]
 
 prettyTaskResult :: TaskResult -> PrettyPrinter
-prettyTaskResult result = prettyWrapString result.string
+prettyTaskResult result = prettyWrapString (result.string <> "\n")
+
+ensureEndPeriod :: String -> String
+ensureEndPeriod str =
+  let
+    str' = String.trim str
+  in
+    str'
+      # String.stripSuffix (String.Pattern ".")
+      >>> maybe
+          -- didn't have a period
+          (str' <> ".")
+          -- already had a preiod
+          (_ <> ".")
 
 prettyDoneTaskPrompt :: TaskPrompt -> PrettyPrinter
-prettyDoneTaskPrompt prompt = addHeader "- [x] " $ prettyWrapString prompt.string
+prettyDoneTaskPrompt prompt = addHeader "- [x] " $ prettyWrapString (ensureEndPeriod prompt.string)
 
 prettyTaskPrompt :: TaskPrompt -> PrettyPrinter
-prettyTaskPrompt prompt = addHeader "- " $ prettyWrapString prompt.string
+prettyTaskPrompt prompt = addHeader "- " $ prettyWrapString (ensureEndPeriod prompt.string)
 
 addHeader :: String -> PrettyPrinter -> PrettyPrinter
 addHeader h =
@@ -93,10 +106,10 @@ addHeader h =
   spaces = String.fromCodePointArray $ Array.replicate (String.length h) (String.codePointFromChar ' ')
 
 prettyCurrentTaskPrompt :: TaskPrompt -> PrettyPrinter
-prettyCurrentTaskPrompt prompt = addHeader "- [ ] " $ prettyWrapString prompt.string
+prettyCurrentTaskPrompt prompt = addHeader "- [ ] " $ prettyWrapString (ensureEndPeriod prompt.string)
 
 prettyTodoTaskPrompt :: TaskPrompt -> PrettyPrinter
-prettyTodoTaskPrompt prompt = addHeader "- [ ] " $ prettyWrapString prompt.string
+prettyTodoTaskPrompt prompt = addHeader "- [ ] " $ prettyWrapString (ensureEndPeriod prompt.string)
 
 prettyTaskZipper :: TaskZipper -> PrettyPrinter
 prettyTaskZipper zipper = goPathRev zipper.path
@@ -147,7 +160,6 @@ doTaskZipper zipper = do
   systemMessage <- taskZipperToSystemMessage zipper
   let
     messages = taskZipperToChatMessages zipper
-  -- log $ "[messages] " <> show messages
   response <-
     Chat.chat
       defaultChatOptions
@@ -198,8 +210,12 @@ summarizeDoneTaskTree tree@(BranchDoneTaskTree _) = [ Chat.user $ go tree ]
   indentString = String.split (String.Pattern "\n") >>> map ("  " <> _) >>> intercalate "\n"
 
 summarizeDoneTaskTree (LeafDoneTaskTree t) =
-  [ Chat.user $ renderTaskPrompt t.prompt
-  , Chat.assistant $ renderTaskResult t.result
+  -- -- write BOTH prompt and result
+  -- [ Chat.user $ renderTaskPrompt t.prompt
+  -- , Chat.assistant $ renderTaskResult t.result
+  -- ]
+  -- write ONLY result
+  [ Chat.assistant $ renderTaskResult t.result
   ]
 
 taskZipperToChatMessages :: TaskZipper -> Array Chat.ChatMessage

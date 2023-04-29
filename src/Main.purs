@@ -21,7 +21,10 @@ main =
       -- prompt = "Create a new trading card game with the theme of alchemy."
       -- prompt = "Design the rules for a new stategic card game about cryptography and politics."
       -- prompt = "Design a sustainable weight-loss plan for a chinese woman with low activity level, high sleep duration, and high fried food intake."
-      prompt = "Design a new original simple deep strategic card game with a programming theme."
+      -- prompt = "Design a new original simple deep strategic card game with a programming theme."
+      -- prompt = "Design a new Magic the Gathering expansion using the themes 'flowers' and 'aliens'."
+      -- prompt = "Design a new house concept that focusses on efficiency, indoor areas that are open to outdoors, and verticality"
+      prompt = "Design a new house concept that focusses on water features and extreme verticality."
     void
       $ flip runReaderT
           { maxDepth: 1
