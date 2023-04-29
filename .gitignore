@@ -11,3 +11,5 @@
 /credentials/
 /.vscode/
 /.env
+/messages.json
+/results
